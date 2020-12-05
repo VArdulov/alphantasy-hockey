@@ -32,6 +32,22 @@ make sure that your pip is the pip3.6, tensorflow and keras don't work for 3.7 y
 
 Below we will describe the observable space, the action space, and the reward function of each agent. This is also the place to describe any time dependencies about how the system (i.e. how frequently can an agent make an action?)
 
+1. **The Environment** - The environment consists of a number agents that compete in weekly head-to-head fantasy hocky match-ups. Each agent "manages" a team consisting of:
+  * 2 active Centers (C)
+  * 2 active Right Wings (RW)
+  * 2 active Left Wings (LW)
+  * 4 active Defensemen (D)
+  * 2 Goalies (G)
+  * 3 Bench slots
+ for the purposes of this experiment we will ommit dealing with Injured Reserves (IR) which is actually commonly available.
+ 
+2. **The Agents/Teams** - Each agent will be alotted a weekly amount of adds/drops and be required to set their line-up daily. For simplicity we will ommit trade offers and accepting for the time being
+
+3. **The Reward** - In this league we will follow goals, assists, hits, and shots for forwards and defenseman and wins and saves for goalies. By accumulating the 
+
+
+Initially let us begin by generating fake hockey data to make sure that the modelling can work as necessary and to iron out engineering issues that may arise.
+
 ## Modeling
 
 Below we describe the methods that we use to implement the agents and their training methods.
