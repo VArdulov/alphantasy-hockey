@@ -3,7 +3,7 @@ Constructing a Neural RL Methodology to creating the ultimate fantasy hockey man
 
 Home of Victor Ardulov's and Fan Hung's official weekend project...
 
-We will use python 3.6 until `keras` and `tensorflow` wise up and support 3.7
+We will use python 3.8
 
 Not an official partner of Google Deepmind OR the NHL... yet...
 
