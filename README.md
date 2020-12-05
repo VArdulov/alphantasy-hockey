@@ -25,7 +25,7 @@ Alternatively if you don't want to deal with environments and you have a global 
 
 ```pip install -r requirements.txt``` 
 
-make sure that your pip is the pip3.6, tensorflow and keras don't work for 3.7 yet.
+make sure that your pip is the pip3.8
 
 
 ## Rules of the "Game"
