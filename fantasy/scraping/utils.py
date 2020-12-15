@@ -12,6 +12,8 @@ from os import path
 from bs4 import BeautifulSoup
 from dataclasses import dataclass
 from pandas import to_datetime, read_html
+from pandas.errors import ParserError
+from logging import info, warning
 
 
 
@@ -25,11 +27,11 @@ def get_summary_soups(season, game_id, verbose=False):
 
     url = path.join(base_url, season_subfolder_format(season), event_summary_uri(game_id))
     if verbose:
-        print(f"GET {url}")
+        info(f"GET {url}")
     r = requests.get(url)
 
     if verbose:
-        print("Success!" if r.status_code == 200 else "Failed!!!")
+        info("Success!" if r.status_code == 200 else "Failed!!!")
 
     event_summary_soup = None
     if r.status_code == 200:
@@ -39,11 +41,11 @@ def get_summary_soups(season, game_id, verbose=False):
 
     url = path.join(base_url, season_subfolder_format(season), game_summary_uri(game_id))
     if verbose:
-        print(f"GET {url}")
+        info(f"GET {url}")
     r = requests.get(url)
 
     if verbose:
-        print("Success!" if r.status_code == 200 else "Failed!!!")
+        info("Success!" if r.status_code == 200 else "Failed!!!")
 
     game_summary_soup = None
     if r.status_code == 200:
@@ -67,16 +69,42 @@ def game_info_from_soup(game_id, data_soup):
     event_summary_soup = data_soup.event_summary
     game_info_soup = event_summary_soup.find(id="GameInfo")
     game_info_df = read_html(game_info_soup.prettify(), flavor="bs4")[0]
-    date_str = to_datetime(game_info_df.iloc[1, 0]).isoformat().split('T')[0]
-    status_str = game_info_df.iloc[5, 0].lower()
+    date_found = False
+    i = 1
+    date_str = ""
+    while not date_found:
+        candidate_str = game_info_df.loc[i, 0]
+        try:
+            date_str = to_datetime(candidate_str).isoformat().split('T')[0]
+            date_found = True
+        except ParserError:
+            warning(f"{candidate_str} in {game_id} is not a date trying next one")
+            i += 1
+        except ValueError:
+            warning(f"{candidate_str} in {game_id} is not a date trying next one")
+            i += 1
+
+    status_str = game_info_df.loc[game_info_df.shape[0]-1, 0].lower()
 
     visitor_team_name_table = event_summary_soup.find(id="Visitor")
     visitor_teamname_df = read_html(visitor_team_name_table.prettify(), flavor="bs4")[0]
-    visitor_teamname = visitor_teamname_df.loc[3, 0].split("Game")[0].strip()
+    visitor_teamname = []
+    for w in visitor_teamname_df.loc[3, 0].split(" "):
+        if w.upper() == w:
+            visitor_teamname.append(w)
+        else:
+            visitor_teamname = " ".join(visitor_teamname)
+            break
 
     home_team_name_table = event_summary_soup.find(id="Home")
     home_teamname_df = read_html(home_team_name_table.prettify(), flavor="bs4")[0]
-    home_teamname = home_teamname_df.loc[3, 0].split("Game")[0].strip()
+    home_teamname = []
+    for w in home_teamname_df.loc[3, 0].split(" "):
+        if w.upper() == w:
+            home_teamname.append(w)
+        else:
+            home_teamname = " ".join(home_teamname)
+            break
 
     return GameInfo(
         date_str,
@@ -84,8 +112,7 @@ def game_info_from_soup(game_id, data_soup):
         home_teamname,
         game_id,
         status_str
-    )
-
+        )
 
 @dataclass
 class GameReport:
@@ -149,7 +176,10 @@ def stats_from_soup(game_info, datasoup):
 
     goalie_info_columns = [0, 1, 2]
     goalie_toi_columns = goalies_df.columns[goalies_df.loc[0] == "TOI"]
-    goalie_goals_shots_columns = goalies_df.columns[goalies_df.loc[0] == "GOALS-SHOTS AGAINST"]
+    goalie_goals_shots_columns = goalies_df.columns[
+        (goalies_df.loc[0] == "GOALS-SHOTS AGAINST") |
+        (goalies_df.loc[0] == "BUTS-LANCERS  GOALS-SHOTS AGAINST")
+    ]
     goalie_tot_goals_shots_column = goalie_goals_shots_columns[goalies_df.loc[1, goalie_goals_shots_columns] == "TOT"]
     goalie_column_idxs = goalie_info_columns + goalie_toi_columns.to_list() + goalie_tot_goals_shots_column.to_list()
     goalie_columns = ["number", "position", "name", "EV", "PP", "SH", "TOT", "GSA-TOT"]
@@ -159,7 +189,12 @@ def stats_from_soup(game_info, datasoup):
     home_team_starting_point = break_point + 4
 
     away_goalie_df = goalies_df.loc[list(range(away_team_starting_point, break_point)), goalie_column_idxs]
-    away_goalie_df.columns = goalie_columns
+    try:
+        away_goalie_df.columns = goalie_columns
+    except ValueError:
+        print(goalies_df.loc[0])
+        print(game_info.game_id)
+        raise ValueError
     home_goalie_df = goalies_df.loc[list(range(home_team_starting_point, end_point)), goalie_column_idxs]
     home_goalie_df.columns = goalie_columns
 
